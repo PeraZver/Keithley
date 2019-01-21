@@ -1,6 +1,7 @@
 import socket   #for sockets
 import sys
 import time
+import numpy as np
  
 class Keithley2002:
     """" Connect and control Keithley2002 over GPIB-Ethernet converter """
@@ -89,15 +90,21 @@ class Keithley2002:
 
     def loopRead(self, channel='09'):
         #self.channel_select(channel)
+        voltage = np.array([])
         print("Loop measurement started.")
         while True:
             try:
                 self.s.send('read?\r')
                 data = self.s.recv(50)
-                print ("CH %s Voltage: %s V.\r" % (data[-10:-8], data[0:data.find('NVDC')]) )  
+                voltage = np.append(voltage, float(data[0:data.find('NVDC')]))
+                print ("CH %s Voltage: %.9f V.\r" % (data[-10:-8], float(data[0:data.find('NVDC')])) )  
                 time.sleep(1)
                 #print('\r')
             except KeyboardInterrupt:
                 print("User interrupted loop measurement")
                 break
+        print("\nStatistics Time !!!!") 
+        print("No. of samples: %d" % np.shape(voltage)[0])       
+        print("Average value: %.2f V, StDev: %.3f mV." % (voltage.mean(), voltage.std()*1e3))
+        print("Deviation: +%.3f, %.3f mV" % ((voltage.max()-voltage.mean())*1e3, (voltage.min()-voltage.mean())*1e3))
 
