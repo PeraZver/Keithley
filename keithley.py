@@ -108,3 +108,81 @@ class Keithley2002:
         print("Average value: %.2f V, StDev: %.3f mV." % (voltage.mean(), voltage.std()*1e3))
         print("Deviation: +%.3f, %.3f mV" % ((voltage.max()-voltage.mean())*1e3, (voltage.min()-voltage.mean())*1e3))
 
+
+
+
+class Keithley2410:
+    """ Connect and control Keithley2410 over GPIB-Ethernet converter """
+
+    def __init__(self, tcp_addr='192.168.90.47', tcp_port=1234):
+        self.tcp_addr, self.tcp_port = tcp_addr, tcp_port
+        self.welcome = 'KEITHLEY INSTRUMENTS INC.,MODEL 2410,4412021,C34 Sep 21 2016 15:30:00/A02  /K/M\n'
+        # Test connection and all of the settings
+        try:
+            #create an AF_INET, STREAM socket (TCP)
+            self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.s.connect((tcp_addr, tcp_port))
+            self.s.settimeout(5)
+
+            
+        except socket.error as err_msg:
+            print ('Unable to instantiate socket. Error code: ' + str(err_msg[0]) + ' , Error message : ' + err_msg[1])
+            sys.exit();
+         
+        print ('\nSocket Initialized.\n')   
+        self.initKeithley2410()
+
+    def initKeithley2410(self):
+        self.checkID()
+        #self.checkPanel()
+        #self.formatSelect()
+        #self.s.send(":init:cont off; cont?\r")
+        # if self.s.recv(5) == '0\n':
+        #     print("Keithley Initialized.")
+        # else:
+        #     print("Initialization funny, but you can continue.")
+
+    def checkID(self):
+        #Test connection
+        self.s.send("*idn?\r")
+        if self.s.recv(100) == self.welcome:
+            print ("Connection with Keithley 2410 estabilished! :D\n")
+        else:
+            print ("Cannot see Keithley :(")
+
+    def checkPanel(self):
+        # Switch to back panel
+        self.s.send(':syst:frsw?\r')
+        x = 'REAR' if  self.s.recv(50).decode() == '0\n' else 'FRONT'
+        print ("Switch set to %s" % x)
+
+    def formatSelect(self):
+        # Format high precision
+        self.s.send(':form:exp hpr; exp?\r')
+        x = 'High Precision' if  self.s.recv(100).decode() == 'HPR\n' else 'Normal'
+        print ('Data format set to: %s' % x)
+
+        # Readout format
+        self.s.send(':form:elem read, stat, unit, chan; elem?\r')
+        print("Data format: %s" % self.s.recv(50))
+ 
+    def normalTxRx(self, message):
+        self.s.send(message + '\r')
+        data = self.s.recv(100)
+        print (data)
+
+    def setOutput(self, output_state): 
+        """ Output state can be either 'ON' or 'OFF' """
+        self.s.send(":outp %s; outp?\r" % output_state)
+        x = 'ON' if self.s.recv(5) == '1\n' else 'OFF'
+        print("Output %s" % x)
+
+    def setSource(self, source):
+        """ source can be 'volt' or 'curr', no quotations. """
+        self.s.send(":sour:func %s; func?\r" % source)
+        x = 'Voltage' if self.s.recv(10) == "VOLT\n" else 'Current'
+        print("Source set to: %s" % x)
+
+
+
+
