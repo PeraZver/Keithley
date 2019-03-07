@@ -122,7 +122,7 @@ class Keithley2410:
 			#create an AF_INET, STREAM socket (TCP)
 			self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.s.connect((tcp_addr, tcp_port))
-			self.s.settimeout(10)
+			self.s.settimeout(5)
 
 			
 		except socket.error as err_msg:
@@ -133,22 +133,25 @@ class Keithley2410:
 		self.initKeithley2410()
 
 	def initKeithley2410(self):
-		self.checkID()
-
 		self.s.send(":syst:pres; pos?\r")		
-		if self.s.recv(5).decode() == 'PRES\n':
+		if self.s.recv(10).decode() == 'PRES\n':
 		    print("Keithley 2410 Preset.")
 		else:
 		    print("Initialization funny, but you can continue.")
 		
+		self.checkID()
 		self.checkPanel()
 		self.formatSelect()
 		print("Keithley Initialized.")
 
+	def close(self):
+		self.s.close()
+		print ("Closing down the socket ...")
+
 	def checkID(self):
 		#Test connection
 		self.s.send("*idn?\r")
-		if self.s.recv(36) == self.welcome:
+		if self.s.recv(100)[0:36] == self.welcome:
 			print ("Connection with Keithley 2410 estabilished! :D\n")
 		else:
 			print ("Cannot see Keithley :(")
@@ -157,17 +160,19 @@ class Keithley2410:
 		""" Switch to front/back panel """
 		self.s.send(':syst:frsw %s; frsw?\r' % panel) # This can also be achieved with :rout:term function
 		time.sleep(0.1)
-		x = 'REAR' if  self.s.recv(50).decode() == 'REAR\n' else 'FRONT'
+		x = 'REAR' if  self.s.recv(10).decode() == 'REAR\n' else 'FRONT'
 		print ("Switch set to %s" % x)
 
 	def formatSelect(self, form='asc'):
 		""" Select output format """
 		self.s.send(':form:data %s; data?\r' % form)
-		x = 'ASCII' if  self.s.recv(100).decode() == 'ASC\n' else 'IEEE754 S.P.'
+		time.sleep(0.1)
+		x = 'ASCII' if  self.s.recv(20).decode() == 'ASC\n' else 'IEEE754 S.P.'
 		print ('Data format set to: %s' % x)
 
 		# Readout format
 		self.s.send(':form:elem volt,curr,res; elem?\r')
+		time.sleep(0.1)
 		print("Data format: %s" % self.s.recv(50))
  
 	def normalTxRx(self, message):
@@ -176,12 +181,20 @@ class Keithley2410:
 		data = self.s.recv(100)
 		print (data)
 
+	def errorCheck(self):
+		print("Error inquery")
+		self.s.send(':syst:err?\r')
+		time.sleep(0.1)
+		print("Error message: %s" % self.s.recv(50))
+
 	def setOutput(self, output_state): 
 		""" Output state can be either 'ON' or 'OFF' """
 		self.s.send(":outp %s; outp?\r" % output_state)
 		time.sleep(0.1)
 		x = 'ON' if self.s.recv(5) == '1\n' else 'OFF'
 		print("Output %s" % x)
+
+# These functions set basic source and sense
 
 	def setSource(self, source):
 		""" source can be 'volt' or 'curr'. """
@@ -206,7 +219,8 @@ class Keithley2410:
 										MAXimum 1A range (I-Source)
 												1100V range (V-Source)
 										UP Select next higher range
-										DOWN Select next lower range """    
+										DOWN Select next lower range 
+										AUTO AUtomatically assigned."""    
 
 		if rang == 'AUTO': 
 			self.s.send(':sour:%s:rang:auto 1; auto?\r' % source )
@@ -251,7 +265,8 @@ class Keithley2410:
 											MINimum -1.05 (amps), -1100 (volts), 0 (ohms)
 											MAXimum 1.05 (amps), 1100 (volts), 2.1e8 (ohms)
 											UP Select next higher measurement range
-											DOWN Select next lower measurement range """
+											DOWN Select next lower measurement range 
+											AUTO Automatically assigned. """
 		if rang == 'AUTO':
 			self.s.send(':sens:%s:rang:auto 1; auto?\r' % sense)
 			time.sleep(0.1)
@@ -261,21 +276,54 @@ class Keithley2410:
 			time.sleep(0.1)
 			print("Sense range: %s" % self.s.recv(20))			
 
-	def errorCheck(self):
-		print("Error inquery")
-		self.s.send(':syst:err?\r')
-		time.sleep(0.1)
-		print("Error message: %s" % self.s.recv(50))
-
 	def readOut(self):
 		self.setOutput('ON')
 		self.s.send(':read?\r')
 		time.sleep(0.1)
 		data = self.s.recv(50).split(',')
-		print("Voltage: %s \nCurrent: %s \nResistance: %s" % (data[0], data[1], data[2]))
+		print("Voltage:   %s \nCurrent:   %s \nResistance: %s" % (data[0], data[1], data[2]))
 		self.setOutput('OFF')
 
-	def sourceVMeasureI(self, v):
+# Some sweet sweep functions		
+
+	def setSweepStart(self, value, source='curr'):
+		""" Define sweep start """
+		self.s.send('sour:%s:start %s; start?\r' % (source, value) )
+		print("Source sweep start: %s" % self.s.recv(20))
+
+	def setSweepStop(self, value, source='curr'):
+		""" Define sweep stop """
+		self.s.send('sour:%s:stop %s; stop?\r' % (source, value) )
+		print("Source sweep stop: %s" % self.s.recv(20))
+
+	def setSweepStep(self, value, source='curr'):
+		""" Define sweep step """
+		self.s.send('sour:%s:step %s; step?\r' % (source, value) )
+		print("Source sweep step: %s" % self.s.recv(20))
+
+	def setSweepMode(self, mode='lin'):
+		""" Set the sweep spacing to LINear or LOGarithmic """
+		self.s.send(':sour:swe:spac %s; spac?\r' % mode)
+		print("Source mode %s." % ('linear' if self.s.recv(20).decode()=='LIN' else 'logarithmic'))
+
+	def setSweepRange(self, rang='AUTO'):
+		""" Adjusts sweep range <name> = BEST Use the best fixed mode
+										AUTO Use the most sensitive source
+										range for each sweep level
+										FIXed Use the present source range for
+										the entire sweep """
+
+		self.s.send(':sour:swe:rang %s; rang?\r' % rang)
+		print("Sweep range set to %s." % self.s.recv(20))
+
+	def setSweepNoPoints(self, NoPoints='10'):
+		""" Sets sweep number of points """
+		self.s.send(':trig:coun %s; coun?\r' % NoPoints)
+		print("Number of sweep points: %s." % self.s.recv(20))
+
+# These fucntion combine previous ones to get desired measurement
+
+	def sourceVMeasureI(self, v, compliance='100e-3'):
 		""" Take V-I measurement """
 		self.setSource('volt')
 		self.setSourceMode('volt', 'fix')
@@ -283,13 +331,96 @@ class Keithley2410:
 		self.setSourceLevel('volt', v)
 
 		self.setSense('curr')
-		self.setSenseProtection('curr', 'DEF')
+		self.setSenseProtection('curr', compliance)
 		self.setSenseRange('curr', 'AUTO')
 
 		self.readOut()
 
+	def sourceIMeasureV(self, i, compliance='100e-3'):
+			""" Take V-I measurement """
+			self.setSource('curr')
+			self.setSourceMode('curr', 'fix')
+			self.setSourceRange('curr', 'AUTO')
+			self.setSourceLevel('curr', i)
+
+			self.setSense('volt')
+			self.setSenseProtection('volt', compliance)
+			self.setSenseRange('volt', 'AUTO')
+
+			self.readOut()
+
+	def sourceVMeasureV(self, v, compliance='100e-3'):
+			""" Take V-I measurement """
+			self.setSource('volt')
+			self.setSourceMode('volt', 'fix')
+			self.setSourceRange('volt', 'AUTO')
+			self.setSourceLevel('volt', v)
+
+			self.setSense('volt')
+			self.setSenseProtection('volt', compliance)
+			self.setSenseRange('volt', 'AUTO')
+
+			self.readOut()
+
+	def sourceIMeasureI(self, i, compliance='100e-3'):
+			""" Take V-I measurement """
+			self.setSource('curr')
+			self.setSourceMode('curr', 'fix')
+			self.setSourceRange('curr', 'AUTO')
+			self.setSourceLevel('curr', i)
+
+			self.setSense('curr')
+			self.setSenseProtection('curr', compliance)
+			self.setSenseRange('curr', 'AUTO')
+
+			self.readOut()
+
+# These functions wrap previous ounes to get more meaningfull measurements
+
+	def measureV(self):
+		""" Only measure V """
+		self.sourceIMeasureV('0', 'MAX')
+
+	def measureI(self):
+		""" Only measure I """
+		self.sourceVMeasureI('0', 'MAX')
+
+	def sinkI(self, i):
+		""" sink current """
+		self.sourceVMeasureI('0', i)
+
+	def measureDiode(self):
+		""" Measurement of Diode U-I characteristics """
+
+		Imin = 1e-3
+		Imax = 100e-3
+		Istep = 1e-3
+		Npoints = int((Imax - Imin)/Istep)
+
+		self.setSource('curr')
+		self.setSense('volt')
+		self.setSenseProtection('volt', '1')
+
+		# Set up the sweep
+		self.setSweepStart('curr', Imin)
+		self.setSweepStop('curr', Imax)
+		self.setSweepStep('curr', Istep)
+		self.setSweepMode('lin')		
+		self.setSweepRange('AUTO')  # adjust the source sweep range
+
+		self.setSourceMode('curr', 'swe')   # set the source in the sweep mode
 
 
-	def close(self):
-		self.s.close()
-		print ("Closing down the socket ...")
+		# Readout format
+		self.s.send(':form:elem volt,curr,res; elem?\r')
+		time.sleep(0.1)
+		print("Data format: %s" % self.s.recv(50))
+
+	def diode(self):
+
+		i_array = np.arange(1e-3, 100e-3, 10e-3)
+		
+		for i in i_array:
+			self.sourceIMeasureV(i, 1)
+			time.sleep(0.25)
+		
