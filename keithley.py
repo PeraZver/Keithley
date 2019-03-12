@@ -286,17 +286,17 @@ class Keithley2410:
 
 # Some sweet sweep functions		
 
-	def setSweepStart(self, value, source='curr'):
+	def setSweepStart(self, source='curr', value=0):
 		""" Define sweep start """
 		self.s.send('sour:%s:start %s; start?\r' % (source, value) )
 		print("Source sweep start: %s" % self.s.recv(20))
 
-	def setSweepStop(self, value, source='curr'):
+	def setSweepStop(self, source='curr', value=0):
 		""" Define sweep stop """
 		self.s.send('sour:%s:stop %s; stop?\r' % (source, value) )
 		print("Source sweep stop: %s" % self.s.recv(20))
 
-	def setSweepStep(self, value, source='curr'):
+	def setSweepStep(self, source='curr', value=0):
 		""" Define sweep step """
 		self.s.send('sour:%s:step %s; step?\r' % (source, value) )
 		print("Source sweep step: %s" % self.s.recv(20))
@@ -304,7 +304,7 @@ class Keithley2410:
 	def setSweepMode(self, mode='lin'):
 		""" Set the sweep spacing to LINear or LOGarithmic """
 		self.s.send(':sour:swe:spac %s; spac?\r' % mode)
-		print("Source mode %s." % ('linear' if self.s.recv(20).decode()=='LIN' else 'logarithmic'))
+		print("Source mode %s." % ('linear' if self.s.recv(20).decode()=='LIN\n' else 'logarithmic'))
 
 	def setSweepRange(self, rang='AUTO'):
 		""" Adjusts sweep range <name> = BEST Use the best fixed mode
@@ -314,12 +314,12 @@ class Keithley2410:
 										the entire sweep """
 
 		self.s.send(':sour:swe:rang %s; rang?\r' % rang)
-		print("Sweep range set to %s." % self.s.recv(20))
+		print("Sweep range set to %s" % self.s.recv(20))
 
 	def setSweepNoPoints(self, NoPoints='10'):
 		""" Sets sweep number of points """
 		self.s.send(':trig:coun %s; coun?\r' % NoPoints)
-		print("Number of sweep points: %s." % self.s.recv(20))
+		print("Number of sweep points: %s" % self.s.recv(20))
 
 # These fucntion combine previous ones to get desired measurement
 
@@ -390,16 +390,18 @@ class Keithley2410:
 		self.sourceVMeasureI('0', i)
 
 	def measureDiode(self):
-		""" Measurement of Diode U-I characteristics """
+		""" Measurement of Diode U-I characteristics using instrument's sweep function. """
 
-		Imin = 1e-3
-		Imax = 100e-3
-		Istep = 1e-3
+		Imin = 0.0
+		Imax = 50e-3
+		Istep = 0.1e-3
 		Npoints = int((Imax - Imin)/Istep)
+		a = ''
+		data = ''
 
 		self.setSource('curr')
 		self.setSense('volt')
-		self.setSenseProtection('volt', '1')
+		self.setSenseProtection('volt', '2')
 
 		# Set up the sweep
 		self.setSweepStart('curr', Imin)
@@ -409,18 +411,17 @@ class Keithley2410:
 		self.setSweepRange('AUTO')  # adjust the source sweep range
 
 		self.setSourceMode('curr', 'swe')   # set the source in the sweep mode
+		self.setSweepNoPoints(Npoints)
 
+		self.setOutput('ON')
+		self.s.send(':read?\r')
 
-		# Readout format
-		self.s.send(':form:elem volt,curr,res; elem?\r')
-		time.sleep(0.1)
-		print("Data format: %s" % self.s.recv(50))
+		while a != '\n':
+			a = self.s.recv(1)
+			data += a
+		data = data[:-1].split(',')
+		# print(data[:-1].split(','))
+		self.setOutput('OFF')
+		return data[0::3], data[1::3] # return voltage and current
 
-	def diode(self):
-
-		i_array = np.arange(1e-3, 100e-3, 10e-3)
-		
-		for i in i_array:
-			self.sourceIMeasureV(i, 1)
-			time.sleep(0.25)
 		
