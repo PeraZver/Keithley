@@ -16,7 +16,7 @@ class Keithley2002:
 			self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.s.connect((tcp_addr, tcp_port))
 			self.s.settimeout(5)
-
+			self.s.send("++addr 16\r")
 			
 		except socket.error as err_msg:
 			print ('Unable to instantiate socket. Error code: ' + str(err_msg[0]) + ' , Error message : ' + err_msg[1])
@@ -26,6 +26,9 @@ class Keithley2002:
 		self.initKeithley2002()
 
 	def initKeithley2002(self):
+
+		self.s.send("++addr\r")
+		print("GPIB Address %s" % self.s.recv(10).decode())
 		self.checkID()
 		self.checkPanel()
 		self.formatSelect()
@@ -38,7 +41,7 @@ class Keithley2002:
 	def checkID(self):
 		#Test connection
 		self.s.send("*idn?\r")
-		if self.s.recv(36) == self.welcome:
+		if self.s.recv(100)[0:36] == self.welcome:
 			print ("Connection with Keithley 2002 estabilished! :D\n")
 		else:
 			print ("Cannot see Keithley :(")
@@ -123,6 +126,7 @@ class Keithley2410:
 			self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.s.connect((tcp_addr, tcp_port))
 			self.s.settimeout(5)
+			self.s.send("++addr 24\r")
 
 			
 		except socket.error as err_msg:
@@ -133,6 +137,8 @@ class Keithley2410:
 		self.initKeithley2410()
 
 	def initKeithley2410(self):
+		self.s.send("++addr\r")
+		print("GPIB Address %s" % self.s.recv(10).decode())
 		self.s.send(":syst:pres; pos?\r")		
 		if self.s.recv(10).decode() == 'PRES\n':
 		    print("Keithley 2410 Preset.")
