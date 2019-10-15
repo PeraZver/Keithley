@@ -83,6 +83,37 @@ class Keithley2002:
 		print ("CH " + data[-10:-8] + " Voltage: " + data[0:data.find('NVDC')])    
 		return data[0:data.find('NVDC')]
 
+	def setOhm(self):
+		self.s.send(":func 'res'; func?\r")
+		if (self.s.recv(10).decode() == '"RES"\n'):
+			print ("2-Wire Ohmmeter selected!")
+
+	def setOhm4W(self):
+		self.s.send(":func 'fres'; func?\r")
+		if (self.s.recv(10).decode() == '"FRES"\n'):
+			print ("4-Wire Ohmmeter selected!")
+
+	def readOhm(self):
+		self.s.send(":func?\r")
+		if (self.s.recv(10).decode() == '"RES"\n'):
+			self.s.send(":read?\r")
+			data = self.s.recv(50)
+			#print ("Resistance:\t %s" %(data[0:data.find('NOHM')]) )
+			return data[0:data.find('NOHM')]
+		else:
+			print ("2W-Ohmmeter not selected")
+
+
+	def readOhm4W(self):
+		self.s.send(":func?\r")
+		if (self.s.recv(10).decode() == '"FRES"\n'):
+			self.s.send(":read?\r")
+			data = self.s.recv(50)
+			#print ("Resistance:\t %s" %(data[0:data.find('NOHM')]) )
+			return data[0:data.find('NOHM4W')]
+		else:
+			print ("4W-Ohmmeter not selected")
+
 	def close(self):
 		self.s.close()
 		print ("Closing down the socket ...")
@@ -110,7 +141,7 @@ class Keithley2002:
 		print("\nStatistics Time !!!!") 
 		print("No. of samples: %d" % np.shape(voltage)[0])       
 		print("Average value: %.2f V, StDev: %.3f mV." % (voltage.mean(), voltage.std()*1e3))
-		print("Deviation: +%.3f, %.3f mV" % ((voltage.max()-voltage.mean())*1e3, (voltage.min()-voltage.mean())*1e3))
+		print("Deviation: +%.3f, -%.3f mV" % ((voltage.max()-voltage.mean())*1e3, (voltage.min()-voltage.mean())*1e3))
 
 
 class Keithley2410:

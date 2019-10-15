@@ -1,7 +1,7 @@
 from keithley import Keithley2002
 import socket
 
-k = Keithley2002("192.168.90.47", 1234)
+k = Keithley2002("192.168.90.251", 1234)
 
 #k.initKeithley2002()
   
