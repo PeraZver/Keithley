@@ -143,6 +143,21 @@ class Keithley2002:
 		print("Average value: %.2f V, StDev: %.3f mV." % (voltage.mean(), voltage.std()*1e3))
 		print("Deviation: +%.3f, -%.3f mV" % ((voltage.max()-voltage.mean())*1e3, (voltage.min()-voltage.mean())*1e3))
 
+	def channel_select_on_2700(self, chNumber ):
+		""" In the Labcart, scan card is handled in Keithley 2700 and the channel selection there """
+		self.chNumber = chNumber
+		# choosing Keithley 2700
+		self.s.send("++addr 15\r")
+
+		self.s.send(':route:close (@' + self.chNumber + '); close? (@' + self.chNumber + ')\r')
+		if self.s.recv(5) == '1\n':
+			print("Channel " + self.chNumber + " on K-2700 set.")
+		else:
+			print("Channel not set :(")
+
+		#going back to Keithley 2002
+		self.s.send("++addr 16\r")
+
 
 class Keithley2410:
 	""" Connect and control Keithley2410 over GPIB-Ethernet converter """
