@@ -6,7 +6,7 @@ import numpy as np
 class Keithley2002:
 	""" Connect and control Keithley2002 over GPIB-Ethernet converter """
 
-	def __init__(self, tcp_addr='192.168.90.47', tcp_port=1234):
+	def __init__(self, tcp_addr='192.168.50.12', tcp_port=1234):
 		self.tcp_addr, self.tcp_port = tcp_addr, tcp_port
 		#self.welcome = 'KEITHLEY INSTRUMENTS INC.,MODEL 2002,4108585,B02  /A02  \n'
 		self.welcome = 'KEITHLEY INSTRUMENTS INC.,MODEL 2002'
@@ -149,9 +149,9 @@ class Keithley2002:
 		# choosing Keithley 2700
 		self.s.send("++addr 15\r")
 
-		self.s.send(':route:close (@' + self.chNumber + '); close? (@' + self.chNumber + ')\r')
-		if self.s.recv(5) == '1\n':
-			print("Channel " + self.chNumber + " on K-2700 set.")
+		self.s.send(':route:mult:close (@' + self.chNumber + '); close:state? (@' + self.chNumber + ')\r')
+		if self.s.recv(5) == '1,1\n':
+			print("Channels " + self.chNumber + " on K-2700 set.")
 		else:
 			print("Channel not set :(")
 
