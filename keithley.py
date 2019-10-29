@@ -32,6 +32,7 @@ class Keithley2002:
 		self.checkID()
 		self.checkPanel()
 		self.formatSelect()
+		self.lineSyncEnable()
 		self.s.send(":init:cont off; cont?\r")
 		if self.s.recv(5) == '0\n':
 			print("Keithley Initialized.")
@@ -61,6 +62,14 @@ class Keithley2002:
 		# Readout format
 		self.s.send(':form:elem read, stat, unit, chan; elem?\r')
 		print("Data format: %s" % self.s.recv(50))
+
+
+	def lineSyncEnable(self):
+		self.s.send(':syst:lsyn:state on; state?\r')
+		x = 'enabled' if  self.s.recv(3).decode() == '1\n' else 'disabled'
+		print("LineSYNC " + x)
+		self.s.send(':sens:volt:dc:nplc?\r')
+		print ("NPLC: %s" % self.s.recv(10).decode())
 
 	def errorCheck(self):
 		print("Error inquery")
