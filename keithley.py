@@ -477,8 +477,6 @@ class Keithley2410:
 		return data[0::3], data[1::3] # return voltage and current
 
 		
-
-
 class Agilent34970A:
 	""" Connect and control Agilent34970A over GPIB-Ethernet converter """
 
@@ -493,8 +491,8 @@ class Agilent34970A:
 			self.s.connect((tcp_addr, tcp_port))
 			self.s.settimeout(5)
 			#self.s.send('++rst\n')
-			self.s.send("++savecfg 0\n")
-			self.s.send("++eos 2\n")
+			#self.s.send("++savecfg 0\n")
+			#self.s.send("++eos 2\n")
 			self.s.send("++addr 14\n")
 
 
@@ -505,21 +503,24 @@ class Agilent34970A:
 		print ('\nSocket Initialized.\n')
 		self.initAgilent34970A()
 
-	def initAgilent34970A(self):
+	def readUntilNewline(self):
+		buff = ''
+		byte = ''
+		while (byte != '\n'):
+			byte = self.s.recv(1)
+			buff += byte
 
+		return buff.replace('\n', '')
+
+	def initAgilent34970A(self):
 		self.s.send("++addr\n")
 		print("GPIB Address %s" % self.s.recv(10).decode())
 
 		self.checkID()
 		self.formatSelect()
+		#self.configureTemp()
 		#self.meas_select()
-		self.meas_select_fetch()
-
-		self.s.send('SYST:ERR?\n')
-		print('Warnings: %s' % self.s.recv(100))
-		self.s.send('SYST:ERR?\n')
-		print('Warnings: %s' % self.s.recv(100))
-		print("Agilent okay :)")
+		#self.meas_select_fetch()
 
 	def checkID(self):
 		#Test connection
@@ -529,120 +530,38 @@ class Agilent34970A:
 		else:
 			print ("Cannot see Agilent :(")
 
-	def checkPanel(self):
-		# Switch to back panel
-		self.s.send(':syst:frsw?\r')
-		x = 'REAR' if  self.s.recv(50).decode() == '0\n' else 'FRONT'
-		print ("Switch set to %s" % x)
 
 	def formatSelect(self):
-		self.s.send("FORM:READ:UNIT ON; UNIT?\n")
+		self.s.send("FORM:READ:UNIT OFF; UNIT?\n")
 		print("Unit on? ")
 		print(self.s.recv(10))
-		self.s.send("FORM:READ:TIME ON; TIME?\n")
+		self.s.send("FORM:READ:TIME OFF; TIME?\n")
 		print("Time stamp on? ")
 		print(self.s.recv(10))
-
 
 	def errorCheck(self):
 		print("Error inquery")
 		self.s.send('SYST:ERR?\n')
 		print("Error message: %s" % self.s.recv(200))
 
-	def meas_select(self):
-		self.s.send("CONF:RES (@102,201)\n")     #set Channel 101, 102 to OHM
-		self.s.send("ROUT:SCAN (@102,201)\n")    #scan Channel 101
-		self.s.send("TRIG:SOUR TIMER; SOUR?\n")
-		print("Timer Source: ")
-		print(self.s.recv(10))
-		self.s.send("TRIG:TIM 100E-03; TIM?\n")
-		print("Timesteps: ")
-		print(self.s.recv(100))
-		self.s.send('TRIG:COUN 1; COUN?\n')
-		print("Number of measurments: ")
-		print(self.s.recv(100))
-		self.s.send("FORM:READ:UNIT OFF; UNIT?\n")
-		print("Unit on? ")
-		print(self.s.recv(10))
-		self.s.send("FORM:READ:TIME ON; TIME?\n")
-		print("Time stamp on? ")
-		print(self.s.recv(10))
-		self.s.send("FORM:READ:TIME:TYPE ABS; TYPE?\n")
-		print("Time type? ")
-		print(self.s.recv(10))
+	def selectChannels(self, channel_list):
+		self.channel_list = channel_list
+		self.s.send(":rout:scan (@%s); scan?\r" % channel_list)
+		print ("Selected channels: " + self.readUntilNewline())
 
-	def meas_select_fetch(self):
-		self.s.send("CONF:RES (@102,201)\n")     #set Channel 101, 102 to OHM
-		self.s.send("ROUT:SCAN (@102,201)\n")    #scan Channel 101
-		self.s.send("TRIG:SOUR TIMER; SOUR?\n")
-		print("Timer Source: ")
-		print(self.s.recv(10))
-		self.s.send("TRIG:TIM 10E-03; TIM?\n")
-		print("Timesteps: ")
-		print(self.s.recv(100))
-		self.s.send('TRIG:COUN 9; COUN?\n')
-		print("Number of measurments: ")
-		print(self.s.recv(100))
-		self.s.send("FORM:READ:UNIT OFF; UNIT?\n")
-		print("Unit on? ")
-		print(self.s.recv(10))
-		self.s.send("FORM:READ:TIME ON; TIME?\n")
-		print("Time stamp on? ")
-		print(self.s.recv(10))
-		self.s.send("FORM:READ:TIME:TYPE ABS; TYPE?\n")
-		print("Time type? ")
-		print(self.s.recv(10))
 
+	def configureTemp(self):
+		self.s.send(":conf:temp FRTD, (@%s); :conf?\r" % self.channel_list)     
+		response = self.readUntilNewline().split(',')
+		for item in response:
+			print ("Config: " + item)
+		#self.s.send("ROUT:SCAN (@101,110)\r")   
 
 	def readout(self):
 		""" Read voltage """
-		data = 0
-		data2 = 0
-		self.s.send('READ?\n')
-		data = self.s.recv(256)
-		[value, year, month, day, hour, minute, second] = data.split(",")
-		self.s.send('\n')
-		data2 = self.s.recv(256)
-		data2 = data2[1:]
-		[value2, year2, month2, day2, hour2, minute2, second2] = data2.split(",")
-		return value, year, month, day, hour, minute, second, value2, year2, month2, day2, hour2, minute2, second2
-
-	def fetch(self):
-		data = 0
-		self.s.send('INIT\n')
-		datapoints = 0
-		time.sleep(1.5)
-		# while datapoints <= 100:
-		# 	self.s.send('DATA:POIN?\n')
-		# 	datapoints = self.s.recv(64)
-		# 	print('Datapoints: {}'.format(datapoints))
-		# 	if datapoints == 100:
-		self.s.send('FETC?\n')			#get data from memory
-		data = self.s.recv(16384) 		#raw data -> +2.09347040E+05,2019,09,24,09,14,46....
-		#print(data)
-		datasplit = data.split(',+') 	#data split into value + date
-		#print('\n')
-		#print('datasplit: \n')
-		#print(datasplit)
-		values = np.array([])
-		dates = np.array([])
-		i = 0
-
-		# while loop -> split the datasplit into seperate value and date and append it to values and dates array
-		while i < len(datasplit):
-  			[value, year, month, day, hour, minute, second] = datasplit[i].split(',')
-  			date = year+'.'+month+'.'+day+' '+hour+':'+minute+' '+second
-  			i = i+1
-  			values = np.append(values,float(value))
-  			dates = np.append(dates, date)
-
-		return values,dates
-
-		# OUTPUT
-		# i = 0
-		# while i < len(values):
-		# 	print('{} @ {}\n'.format(values[i],dates[i]))
-		# 	i = i+1
+		self.s.send(":read?\r")
+		data = self.readUntilNewline()
+		return data.split(",")
 
 
 	def outputVolt(self, voltage, chNumber):
@@ -662,10 +581,10 @@ class Agilent34970A:
 		print ("Closing down the socket ...")
 
 	def normalTxRx(self, message):
-		self.s.send(message + '\n')
-		if message.find('?') != -1:
-			data = self.s.recv(16384)
-			print (data)
+		self.s.send(message + '\r')
+		time.sleep(0.1)
+		data = self.readUntilNewline()
+		print (data)
 
 	# def send(self, message, termination='\n'):
 	# 	command = "{}{}".format(message, termination)
@@ -674,4 +593,3 @@ class Agilent34970A:
 	# def read(self):
 	# 	data = self.s.recv(4096)
 	# 	return data
-		
