@@ -32,6 +32,7 @@ class Keithley2002:
 		self.checkID()
 		self.checkPanel()
 		self.formatSelect()
+		self.setNPLC()
 		self.s.send(":init:cont off; cont?\r")
 		if self.s.recv(5) == '0\n':
 			print("Keithley Initialized.")
@@ -157,6 +158,11 @@ class Keithley2002:
 
 		#going back to Keithley 2002
 		self.s.send("++addr 16\r")
+
+	def setNPLC(self):
+		self.s.send(":volt:nplc 10; nplc?\r")
+		x = self.s.recv(10)
+		print("NPLC Cycles: " + x)
 
 
 class Keithley2410:
@@ -517,7 +523,7 @@ class Agilent34970A:
 		print("GPIB Address %s" % self.s.recv(10).decode())
 
 		self.checkID()
-		self.formatSelect()
+		#self.formatSelect()
 		#self.configureTemp()
 		#self.meas_select()
 		#self.meas_select_fetch()
