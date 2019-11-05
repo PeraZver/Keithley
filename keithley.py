@@ -159,7 +159,10 @@ class Keithley2002:
 		#going back to Keithley 2002
 		self.s.send("++addr 16\r")
 
-	def setNPLC(self):
+	def setNPLC(self): 
+		self.s.send(':syst:lsyn:state on; state?\r')
+		x = 'enabled' if  self.s.recv(3).decode() == '1\n' else 'disabled'
+		print("LineSYNC " + x)
 		self.s.send(":volt:nplc 10; nplc?\r")
 		x = self.s.recv(10)
 		print("NPLC Cycles: " + x)
@@ -193,9 +196,9 @@ class Keithley2410:
 		print("GPIB Address %s" % self.s.recv(10).decode())
 		self.s.send(":syst:pres; pos?\r")		
 		if self.s.recv(10).decode() == 'PRES\n':
-		    print("Keithley 2410 Preset.")
+			print("Keithley 2410 Preset.")
 		else:
-		    print("Initialization funny, but you can continue.")
+			print("Initialization funny, but you can continue.")
 		
 		self.checkID()
 		self.checkPanel()
