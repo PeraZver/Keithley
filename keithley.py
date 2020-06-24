@@ -77,6 +77,10 @@ class Keithley2002:
 		else:
 			print("Channel not set :(")
 
+	def setVoltageRange(self, range):
+		self.s.send(":sens:volt:dc:range " + str(range) + "; range?\r")
+		print("Range set to %f" % (float(self.s.recv(50))) )
+
 	def readout(self):
 		""" Read voltage """
 		self.s.send('read?\r')
@@ -103,7 +107,6 @@ class Keithley2002:
 			return data[0:data.find('NOHM')]
 		else:
 			print ("2W-Ohmmeter not selected")
-
 
 	def readOhm4W(self):
 		self.s.send(":func?\r")
@@ -166,6 +169,10 @@ class Keithley2002:
 		self.s.send(":volt:nplc 10; nplc?\r")
 		x = self.s.recv(10)
 		print("NPLC Cycles: " + x)
+
+	def setVoltAVG(self, avg):
+		self.s.send(":sens:volt:dc:aver:count " + str(avg) + "; count?\r")
+		print("Averaging set to %d" % (int(self.s.recv(10))) )
 
 
 class Keithley2410:

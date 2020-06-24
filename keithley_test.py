@@ -2,7 +2,7 @@ from keithley import Keithley2002, Agilent34970A
 import socket
 
 #k = Agilent34970A("192.168.50.12", 1234)
-k = Keithley2002("192.168.50.12", 1234)
+k = Keithley2002("192.168.90.61", 1234)
 
 #k.initKeithley2002()
   
