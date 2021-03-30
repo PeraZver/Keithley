@@ -32,7 +32,7 @@ class Keithley2002:
 		self.checkID()
 		self.checkPanel()
 		self.formatSelect()
-		self.setNPLC()
+		#self.setNPLC()
 		self.s.send(":init:cont off; cont?\r")
 		if self.s.recv(5) == '0\n':
 			print("Keithley Initialized.")
